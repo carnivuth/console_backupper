@@ -11,6 +11,10 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 
@@ -61,6 +65,14 @@ func main() {
 	http.HandleFunc("/consoles/{console}", web.ConsoleHandler)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.Handle("/downloads/", http.StripPrefix("/downloads/", http.FileServer(http.Dir(utils.Getenv("CONSOLE_BACKUPPER_DATA_DIR", "/var/lib/console_backupper")))))
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+	http.Handle(utils.Getenv("CONSOLE_BACKUPPER_METRICS_PATH", "/metrics"), promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+
 	log.Println("Listening on :8080")
 	http.ListenAndServe(":8080", nil)
 }
